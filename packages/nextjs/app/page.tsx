@@ -5,7 +5,7 @@ import { Address } from "@scaffold-ui/components";
 import type { NextPage } from "next";
 import { hardhat } from "viem/chains";
 import { useAccount } from "wagmi";
-import { BugAntIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import { BugAntIcon, ChartBarIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { useTargetNetwork } from "~~/hooks/scaffold-eth";
 
 const Home: NextPage = () => {
@@ -68,6 +68,16 @@ const Home: NextPage = () => {
                   Block Explorer
                 </Link>{" "}
                 tab.
+              </p>
+            </div>
+            <div className="flex flex-col bg-base-100 px-10 py-10 text-center items-center max-w-xs rounded-3xl">
+              <ChartBarIcon className="h-8 w-8 fill-secondary" />
+              <p>
+                Simulate Uniswap V3 concentrated liquidity with the{" "}
+                <Link href="/lp?ammPool=0xB7f0fbE6eaC7C096c1665546b747B65fE6277381" passHref className="link">
+                  LP Simulator
+                </Link>
+                .
               </p>
             </div>
           </div>
