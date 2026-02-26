@@ -168,7 +168,11 @@ export function LiquiditySimulatorCard({
             />
           </div>
 
-          <CalculationExplainer primaryPosition={primaryPosition} pool={pool} />
+          <CalculationExplainer
+            primaryPosition={primaryPosition}
+            pool={pool}
+            usedAmount0={positionFromAmount0 != null}
+          />
         </div>
 
         {primaryPosition != null && (

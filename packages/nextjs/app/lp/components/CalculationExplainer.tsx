@@ -1,9 +1,32 @@
 import type { PositionLike } from "../types";
 import type { Pool } from "@uniswap/v3-sdk";
 
-type Props = { primaryPosition: PositionLike | null; pool: Pool | null };
+function toSqrtPrice(priceSig: string): number {
+  const p = parseFloat(priceSig);
+  return Number.isFinite(p) && p > 0 ? Math.sqrt(p) : 0;
+}
 
-export function CalculationExplainer({ primaryPosition, pool }: Props) {
+function formatNum(x: number): string {
+  if (x >= 1e6 || (x > 0 && x < 1e-4)) return x.toExponential(4);
+  return x.toLocaleString(undefined, { maximumFractionDigits: 6, minimumFractionDigits: 0 });
+}
+
+type Props = {
+  primaryPosition: PositionLike | null;
+  pool: Pool | null;
+  /** True when primary position was computed from token0 amount (user entered token0). */
+  usedAmount0?: boolean;
+};
+
+export function CalculationExplainer({ primaryPosition, pool, usedAmount0 = false }: Props) {
+  const hasRealData = primaryPosition != null && pool != null;
+  const sqrtP_a = hasRealData ? toSqrtPrice(primaryPosition!.token0PriceLower.toSignificant(18)) : 0;
+  const sqrtP_b = hasRealData ? toSqrtPrice(primaryPosition!.token0PriceUpper.toSignificant(18)) : 0;
+  const sqrtP = hasRealData ? toSqrtPrice(pool!.token0Price.toSignificant(18)) : 0;
+  const amount0Human = hasRealData ? primaryPosition!.amount0.toSignificant(8) : "";
+  const amount1Human = hasRealData ? primaryPosition!.amount1.toSignificant(8) : "";
+  const L = hasRealData ? primaryPosition!.liquidity.toString() : "";
+
   return (
     <details className="mt-6 min-w-0 overflow-hidden">
       <summary className="cursor-pointer font-semibold text-base-content/80 hover:text-base-content">
@@ -50,7 +73,77 @@ export function CalculationExplainer({ primaryPosition, pool }: Props) {
             (SqrtPriceMath, etc.).
           </p>
         </div>
-        {primaryPosition != null && pool != null && (
+        {hasRealData && (
+          <div>
+            <p className="font-medium mb-2">Current calculation (your position, with real numbers)</p>
+            <p className="text-base-content/80 mb-2 text-xs">
+              Your range and pool price → sqrt prices; then L and the other token from the formula.
+            </p>
+            <ol className="list-decimal list-inside space-y-2 font-mono text-xs break-words ml-2">
+              <li>
+                Range → sqrt prices: √P_a = √(price lower) = <strong>{formatNum(sqrtP_a)}</strong>, √P_b = √(price
+                upper) = <strong>{formatNum(sqrtP_b)}</strong>. Current √P = <strong>{formatNum(sqrtP)}</strong>.
+              </li>
+              {usedAmount0 ? (
+                <>
+                  <li>
+                    You entered <strong>{amount0Human} token0</strong>. L = (amount0 · √P_a · √P_b) / (√P_b − √P_a) →
+                    SDK gives <strong>L = {L}</strong>.
+                  </li>
+                  <li>
+                    Token1 needed: amount1 = L · (√P − √P_a) → <strong>{amount1Human} token1</strong>.
+                  </li>
+                </>
+              ) : (
+                <>
+                  <li>
+                    You entered <strong>{amount1Human} token1</strong>. L = amount1 / (√P_b − √P_a) → SDK gives{" "}
+                    <strong>L = {L}</strong>.
+                  </li>
+                  <li>
+                    Token0 needed: amount0 = L · (1/√P − 1/√P_b) → <strong>{amount0Human} token0</strong>.
+                  </li>
+                </>
+              )}
+            </ol>
+          </div>
+        )}
+        <details className="min-w-0 overflow-hidden">
+          <summary className="cursor-pointer font-medium text-base-content/80 hover:text-base-content">
+            Worked example (generic numbers)
+          </summary>
+          <div className="mt-3 space-y-3 text-xs">
+            <p className="text-base-content/80">
+              Example: range [√P_a, √P_b] with current price √P. You supply one side; we compute L, then the other
+              token.
+            </p>
+            <p className="font-medium text-base-content/90">Case A — You enter amount of token0 (e.g. 100 token0)</p>
+            <ol className="list-decimal list-inside space-y-1 font-mono break-words ml-2">
+              <li>Range → sqrt prices: √P_a = 1, √P_b = 2 (e.g. from tick range). Current √P = 1.5.</li>
+              <li>
+                Liquidity from token0: L = (amount0 · √P_a · √P_b) / (√P_b − √P_a) = (100 · 1 · 2) / (2 − 1) ={" "}
+                <strong>200</strong>.
+              </li>
+              <li>
+                Token1 needed: amount1 = L · (√P − √P_a) = 200 · (1.5 − 1) = 200 · 0.5 = <strong>100 token1</strong>.
+              </li>
+            </ol>
+            <p className="font-medium text-base-content/90 mt-2">
+              Case B — You enter amount of token1 (e.g. 100 token1)
+            </p>
+            <ol className="list-decimal list-inside space-y-1 font-mono break-words ml-2">
+              <li>Same range: √P_a = 1, √P_b = 2, current √P = 1.5.</li>
+              <li>
+                Liquidity from token1: L = amount1 / (√P_b − √P_a) = 100 / (2 − 1) = <strong>100</strong>.
+              </li>
+              <li>
+                Token0 needed: amount0 = L · (1/√P − 1/√P_b) = 100 · (1/1.5 − 1/2) = 100 · (0.666… − 0.5) ≈{" "}
+                <strong>16.67 token0</strong>.
+              </li>
+            </ol>
+          </div>
+        </details>
+        {hasRealData && (
           <div>
             <p className="font-medium mb-2">Applied to your position</p>
             <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 font-mono text-xs break-all">
